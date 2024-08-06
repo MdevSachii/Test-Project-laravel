@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  tal-app:
+    profiles: ["main"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        uid: ${UID}
+    image: tal-app:latest
+    container_name: tal-app-container
+    volumes:
+      - ./:/var/www/html:delegated
+      - ./docker-configs/php.ini:/usr/local/etc/php/php.ini:ro
+      - ./example_dir:/home/app/uploading_files #Test uploading files will be mounted here
+    ports:
+      - 8000:80
+      - 5173:5173 #Vite Port
+    depends_on:
+      - tal-mariadb
+
+  tal-redis-server:
+    profiles: ["main"]
+    image: "redis:alpine"
+    command: redis-server
+    container_name: tal-redis-server-container
+    ports:
+      - "6379:6379"
+
+  tal-mariadb:
+    profiles: ["main"]
+    image: mariadb:10.8.3
+    container_name: tal-mariadb
+    command:
+      [
+        '--default-time-zone=+00:00',
+        '--default-authentication-plugin=mysql_native_password'
+      ]
+    ports:
+      - 3307:3306
+    environment:
+      - MARIADB_ROOT_PASSWORD=root
+    volumes:
+      - tal-mariadb-data:/var/lib/mysql
+
+  tal-phpmyadmin:
+    profiles: ["main"]
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: tal-phpmyadmin
+    environment:
+      - PMA_HOST=tal-mariadb
+      - PMA_USER=root
+      - PMA_PASSWORD=root
+      - UPLOAD_LIMIT=120M
+    ports:
+      - "6001:80"
+    depends_on:
+      - tal-mariadb
+
+ 
+
+  tal-docs:
+    profiles: ["main"]
+    image: nginx
+    container_name: tal-docs-container
+    ports:
+      - 6004:80
+    volumes:
+      - ./docs:/usr/share/nginx/html
+
+volumes:
+  tal-mariadb-data:
